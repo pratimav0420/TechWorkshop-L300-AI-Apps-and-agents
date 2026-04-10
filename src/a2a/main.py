@@ -1,7 +1,13 @@
 import os
 import logging
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Add site-packages to front of path to avoid local package shadowing
+venv_path = os.path.join(os.path.dirname(__file__), '..', '.venv', 'Lib', 'site-packages')
+if os.path.exists(venv_path):
+    sys.path.insert(0, venv_path)
 
 import httpx
 from fastapi import FastAPI, Request
