@@ -1,0 +1,62 @@
+name: Build and Deploy to Azure Container App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY_NAME: mss7d64x723x4cosureg
+  CONTAINER_APP_NAME: mss7d64x723x4-app
+  RESOURCE_GROUP: agentappsprval0409
+  IMAGE_NAME: chat-app
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY_NAME }}.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+        
+    - name: Get commit SHA
+      id: vars
+      run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+      
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./src
+        file: ./src/Dockerfile
+        push: true
+        tags: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+        platforms: linux/amd64
+        
+    - name: Log in to Azure for Container App update
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Deploy to Azure Container App
+      run: |
+        az containerapp update \
+          --name ${{ env.CONTAINER_APP_NAME }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+            
+    - name: Get Container App URL
+      run: |
+        APP_URL=$(az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)
+        echo "🚀 Application deployed successfully!"
+        echo "📱 Container App URL: https://$APP_URL"
+        echo "🏷️ Image Tag: ${{ steps.vars.outputs.sha_short }}"

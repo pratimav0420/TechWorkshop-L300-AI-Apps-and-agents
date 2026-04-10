@@ -14,6 +14,7 @@ azure_ai_project = os.getenv("FOUNDRY_ENDPOINT")
 red_team_agent = RedTeam(
     azure_ai_project=azure_ai_project,
     credential=DefaultAzureCredential(),
+    custom_attack_seed_prompts="data/custom_attack_prompts.json",
     risk_categories=[
         RiskCategory.Violence,
         RiskCategory.HateUnfairness,
@@ -60,7 +61,11 @@ def cora_target(query: str) -> str:
 
 
 async def main():
-    red_team_result = await red_team_agent.scan(target=cora_target)
-
+    red_team_result = await red_team_agent.scan(
+        target=cora_target,
+        scan_name="Red Team Scan - Easy Strategies",
+        attack_strategies=[
+            AttackStrategy.EASY
+        ])
 asyncio.run(main())
 

@@ -57,4 +57,5 @@ out/
 parameters.json
 .azure
 
-.claude/
+.claude/azure-credentials.json
+GITHUB_SECRETS_SETUP.md
