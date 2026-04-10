@@ -40,13 +40,13 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy new container image with environment variables
-        run: |
-          az containerapp update \
-            --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --set-env-vars \
-              FOUNDRY_ENDPOINT="${{ secrets.FOUNDRY_ENDPOINT }}" \
-              gpt_endpoint="${{ secrets.GPT_ENDPOINT }}" \
-              embedding_endpoint="${{ secrets.EMBEDDING_ENDPOINT }}" \
-              phi_4_endpoint="${{ secrets.PHI_4_ENDPOINT }}"
+        run: >
+          az containerapp update
+          --name "${{ secrets.AZURE_CONTAINER_APP_NAME }}"
+          --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}"
+          --image "${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          --set-env-vars
+          FOUNDRY_ENDPOINT="${{ secrets.FOUNDRY_ENDPOINT }}"
+          gpt_endpoint="${{ secrets.GPT_ENDPOINT }}"
+          embedding_endpoint="${{ secrets.EMBEDDING_ENDPOINT }}"
+          phi_4_endpoint="${{ secrets.PHI_4_ENDPOINT }}"
