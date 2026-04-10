@@ -10,9 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY_NAME: mss7d64x723x4cosureg
-  CONTAINER_APP_NAME: mss7d64x723x4-app
-  RESOURCE_GROUP: agentappsprval0409
+  AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
   IMAGE_NAME: chat-app
 
 jobs:
@@ -22,45 +20,33 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Azure Container Registry
-        uses: docker/login-action@v3
+        uses: azure/docker-login@v1
         with:
-          registry: ${{ env.REGISTRY_NAME }}.azurecr.io
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-          
-      - name: Get commit SHA
-        id: vars
-        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          login-server: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+          username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./src
-          file: ./src/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
-          platforms: linux/amd64
+        run: |
+          cd src/
+          docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Login via Azure CLI
-        uses: azure/login@v1
+        uses: azure/login@v2.1.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy new container image
+      - name: Deploy new container image with environment variables
         run: |
           az containerapp update \
-            --name ${{ env.CONTAINER_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.REGISTRY_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
-            
-      - name: Get Container App URL
-        run: |
-          APP_URL=$(az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query properties.configuration.ingress.fqdn -o tsv)
-          echo "🚀 Application deployed successfully!"
-          echo "📱 Container App URL: https://$APP_URL"
-          echo "🏷️ Image Tag: ${{ steps.vars.outputs.sha_short }}"
+            --name ${{ secrets.AZURE_CONTAINER_APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              FOUNDRY_ENDPOINT="${{ secrets.FOUNDRY_ENDPOINT }}" \
+              gpt_endpoint="${{ secrets.GPT_ENDPOINT }}" \
+              embedding_endpoint="${{ secrets.EMBEDDING_ENDPOINT }}" \
+              phi_4_endpoint="${{ secrets.PHI_4_ENDPOINT }}"
